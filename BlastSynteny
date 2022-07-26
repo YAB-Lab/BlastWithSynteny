@@ -1,0 +1,309 @@
+#!/bin/bash
+
+
+## help menu
+# if [ "$1" == "-h" ] || [ $# -eq 0 ]; then
+#   echo -e "\n\t"
+#   pyfiglet -f puffy BlastSynteny
+#   echo -e "\n\tPerforms synteny BLAST between a focal query protein and its neighbours\n"
+#   echo -e "\n\tUsage:  `basename $0` [-g <GFF>] [-p <protein FASTA>]\n\t\t[-t <genomes/gff folder>] [-a <annotation_file>]\n\t\t[-i <gene_id>]"
+#   echo -e "\n\n\t-g <GFF>\t\t\tThe query GFF annotation file."
+#   echo -e "\t-p <protein FASTA>\t\tThe query protein sequence database in FASTA format"
+#   echo -e "\t-f <genomes/gff folder>\t\tThe folder containing the target genomes and their GTF annotations.\n\t\t\t\t\t[file names should have extension '.fa' and '.gff']"
+#   echo -e "\t-a <annotation_file>\t\tA tab separated file with three columns: gene_id, transcript_id, and protein_id"
+#   echo -e "\t-i <gene_id>\t\t\tThe query gene id as it appears in 'annotation_file'\n\n"
+#   echo -e "\t\tRequirements: The following programs/scripts need to be in your path variable:\n"
+#   echo -e "\t\t1. fastagrep.pl"
+#   echo -e "\t\t2. FastaNamesSizes_syn.pl"
+#   echo -e "\t\t3. doSyntenyFilter.pl (needs to be installed as part of the 'SynBlast' perl package)"
+#   echo -e "\t\t4. gffread (obtain from 'https://github.com/gpertea/gffread', NOT conda!)"
+#   echo -e "\t\t5. NCBI BLAST+\n"
+#   echo -e "\t\tOther dependencies can be loaded from the 'synblast_env.yml' conda environment\n\n"
+#
+#   exit 0
+# fi
+
+# Declare functions
+print_help_and_exit () {
+  echo -e "\n\t"
+  pyfiglet -f puffy BlastSynteny
+  echo -e "\n\tPerforms synteny BLAST between a focal query protein and its neighbours\n"
+  echo -e "\n\tUsage:  `basename $0` [-g <GFF>] [-p <protein FASTA>]\n\t\t[-t <genomes/gff folder>] [-a <annotation_file>]\n\t\t[-i <gene_id>] ... [OPTIONS]"
+  echo -e "\n\n\t-g <GFF>\t\t\tThe query GFF annotation file."
+  echo -e "\t-p <protein FASTA>\t\tThe query protein sequence database in FASTA format"
+  echo -e "\t-f <genomes/gff folder>\t\tThe folder containing the target genomes and their GTF annotations.\n\t\t\t\t\t[file names should have extension '.fa' and '.gff']"
+  echo -e "\t-a <annotation_file>\t\tA tab separated file with three columns: gene_id, transcript_id, and protein_id"
+  echo -e "\t-i <gene_id>\t\t\tThe query gene id as it appears in 'annotation_file'\n\n"
+  echo -e "\tOptional arguments:"
+  echo -e "\t-d <flank_dist>\t\t\tThe flanking region size in bp [default = 25000]\n\n"
+
+  echo -e "\t\tRequirements: The following programs/scripts need to be in your path variable:\n"
+  echo -e "\t\t1. fastagrep.pl"
+  echo -e "\t\t2. FastaNamesSizes_syn.pl"
+  echo -e "\t\t3. doSyntenyFilter.pl (needs to be installed as part of the 'SynBlast' perl package)"
+  echo -e "\t\t4. gffread (obtain from 'https://github.com/gpertea/gffread', NOT conda!)"
+  echo -e "\t\t5. NCBI BLAST+\n"
+  echo -e "\t\tOther dependencies can be loaded from the 'synblast_env.yml' conda environment\n\n"
+    exit $1
+}
+
+## Default arguments
+flank_size=25000
+
+while getopts g:p:f:a:i:e flag
+do
+    case "${flag}" in
+        g) gff_file=${OPTARG};;
+        p) pep_file=${OPTARG};;
+        f) genomes_folder=${OPTARG};;
+        a) annotation_file=${OPTARG};;
+        i) gene_id=${OPTARG};;
+        r) something=${OPTARG};;
+        e) empty=${OPTARG};;
+        d) flank_size=${OPTARG};;
+        h) print_help_and_exit 0 ;;
+        ?) print_help_and_exit 1 ;;
+        *) print_help_and_exit 1 ;;
+    esac
+done
+
+
+# CMD parameters
+GTF_FILE=$gff_file
+PEP_FILE=$pep_file
+GENOMES_FOLDER=$genomes_folder
+ANNOTATION_FILE=$annotation_file
+GENE_ID=$gene_id
+
+
+if [ -z ${gff_file} ] ; then
+  echo "missing all the key arguments"
+  print_help_and_exit 1
+fi
+
+if [ -z ${pep_file} ] ; then
+  print_help_and_exit 1
+fi
+
+if [ -z ${genomes_folder} ] ; then
+  print_help_and_exit 1
+fi
+
+pyfiglet -f puffy BlastSynteny
+
+# echo -e "\n\n\t Starting BlastSynteny... "
+## make the temporary working directory
+mkdir -p .tmp_synblast_folder.$GENE_ID
+
+pyfiglet -f digital Starting BlastSynteny...
+
+echo -e "\n\n\t Obtaining the transcript sequences for gene $GENE_ID"
+
+num_transcrits=$(grep $GENE_ID $ANNOTATION_FILE | cut -f 2 | wc -l)
+
+grep $GENE_ID $ANNOTATION_FILE | cut -f 2 -> .tmp_synblast_folder.$GENE_ID/transcript_list
+
+echo -e "\n\n\t $GENE_ID has $num_transcrits transcript(s):\n"
+
+cat .tmp_synblast_folder.$GENE_ID/transcript_list | sed 's/^/\t\t/g'
+
+transcript=$(head -1 .tmp_synblast_folder.$GENE_ID/transcript_list)
+
+echo -e "\n\n\t\t Running the analysis on the first transcrtipt: $transcript"
+
+## Starting process. Define GTF elements
+query_chr=$(grep $transcript $GTF_FILE | awk '$3 == "transcript"' | cut -f 1)
+query_min=$(grep $transcript $GTF_FILE | awk '$3 == "transcript"' | cut -f 4)
+query_max=$(grep $transcript $GTF_FILE | awk '$3 == "transcript"' | cut -f 5)
+
+echo -e "\n\n\t\t Query gene coordinates: $query_chr $query_min $query_max"
+
+## create the temporary protein info file
+awk -v chr="$query_chr" '$1 == chr' $GTF_FILE | \
+  awk -v min="$query_min" '$4 > min-25000' | \
+  awk -v max="$query_max" '$4 < max+25000' | \
+  awk '$3 == "transcript"' | \
+  cut -f 4,5,7,9 | \
+  grep protein_coding | \
+  awk '{print $1, $2, $7, $5, $9, $3}' | \
+  sed 's/"//g' | \
+  sed 's/;//g' | \
+  sed 's/+$/1/g' | \
+  sed 's/-$/-1/g' | \
+  tr ' ' '\t' > .tmp_synblast_folder.$GENE_ID/tmp_info_file.txt
+
+## extract the protein sequences of the focal gene and its neighbours
+cut -f 3 .tmp_synblast_folder.$GENE_ID/tmp_info_file.txt | \
+  fastagrep.pl -f - $PEP_FILE > .tmp_synblast_folder.$GENE_ID/$GENE_ID.proteins.fasta
+
+
+echo -e "\n\n\t\t# The query FASTA file contains:"
+## output the protein lengths:
+FastaNamesSizes_syn.pl .tmp_synblast_folder.$GENE_ID/$GENE_ID.proteins.fasta > .tmp_synblast_folder.$GENE_ID/$GENE_ID.proteins.lengths
+
+## generate the complete gene/transcript/protein IDs file:
+grep ">" .tmp_synblast_folder.$GENE_ID/$GENE_ID.proteins.fasta | \
+  sed 's/pep primary.*gene:/\t/g' | \
+  sed 's/ transcript:/\t/g' | \
+  sed 's/ gene_biotype.* gene_symbol:/\t/g' | \
+  sed 's/ description.*//g' | \
+  sed 's/>//g' > .tmp_synblast_folder.$GENE_ID/$GENE_ID.annot
+
+## combining lengths with protein info file
+join .tmp_synblast_folder.$GENE_ID/$GENE_ID.proteins.lengths .tmp_synblast_folder.$GENE_ID/$GENE_ID.annot | awk '{print $4, $1, $2, $3, $5}' | tr ' ' '\t' > .tmp_synblast_folder.$GENE_ID/tmpFile
+
+## Missing a couple of variables for the header:
+strand_ori=$(grep $transcript .tmp_synblast_folder.$GENE_ID/tmp_info_file.txt | cut -f 6)
+prot_length=$(grep $transcript .tmp_synblast_folder.$GENE_ID/tmpFile | cut -f 3)
+
+## Create the header for the protein info file
+echo "#protein.info file
+#!organism=Drosophila_melanogaster
+#!ensemblRelease=dec2006
+#!coordsystem=chromosome
+#!seqregion=CHR
+#!from=PROT_START
+#!to=PROT_END
+#!strand=STRAND_ORI
+#!length=PROT_LENGTH
+#!focalgene=GENE_NAME
+#!flankingsize=5e5
+#!columns=startPos,endPos,meanPos,protID,protName,ori,geneID,geneName,transID,protLength" | \
+  sed "s/CHR/$query_chr/g" | \
+  sed "s/PROT_START/$query_min/g" | \
+  sed "s/PROT_END/$query_max/g" | \
+  sed "s/STRAND_ORI/$strand_ori/g" | \
+  sed "s/PROT_LENGTH/$prot_length/g" | \
+  sed "s/GENE_NAME/$GENE_ID/g" > .tmp_synblast_folder.$GENE_ID/$GENE_ID.header
+
+## Make the final protein info file:
+cat .tmp_synblast_folder.$GENE_ID/tmp_info_file.txt | \
+    awk '{print $3, $1, $2, $4, $5, $6}' | \
+    join - .tmp_synblast_folder.$GENE_ID/tmpFile | \
+    awk 'BEGIN{OFS="\t"}{print $2, $3, ($2 + $3)/2, $7, $5, $6, $4, $5, $1, $8}' | \
+    cat .tmp_synblast_folder.$GENE_ID/$GENE_ID.header - > .tmp_synblast_folder.$GENE_ID/$GENE_ID.proteins.info
+
+###
+###
+
+## prep the reference genome BLAST databses:
+mkdir .tmp_synblast_folder.$GENE_ID/blastdbs
+cp $GENOMES_FOLDER/*.fa .tmp_synblast_folder.$GENE_ID/blastdbs
+
+# make a list of species
+ls -1 $GENOMES_FOLDER | grep ".fa$" | sed 's/\..*//g' > .tmp_synblast_folder.$GENE_ID/ref.list
+
+##
+echo -e "\n\n\t Building reference BLAST databases:"
+
+for genome in `cat .tmp_synblast_folder.$GENE_ID/ref.list`
+  do
+    echo -e "\n\t Building reference for $genome genome"
+    makeblastdb -in .tmp_synblast_folder.$GENE_ID/blastdbs/$genome.fa -dbtype nucl >> .tmp_synblast_folder.$GENE_ID/blastDB.log 2>&1
+  done
+
+## Run blast processes for each reference genome
+mkdir .tmp_synblast_folder.$GENE_ID/tblastn/
+
+for genome in `cat .tmp_synblast_folder.$GENE_ID/ref.list`
+  do
+    echo -e "\n\t Running tBLASTn against $genome"
+    tblastn \
+    -query .tmp_synblast_folder.$GENE_ID/$GENE_ID.proteins.fasta \
+    -db .tmp_synblast_folder.$GENE_ID/blastdbs/$genome.fa \
+    -outfmt 6 \
+    -evalue 1e-5 > .tmp_synblast_folder.$GENE_ID/tblastn/$GENE_ID.proteins.info.$genome.blastresult
+  done
+
+## Now run synteny filter
+
+echo -e "\n\n\n"
+
+pyfiglet -f digital Filtering synteny hits...
+
+for genome in `cat .tmp_synblast_folder.$GENE_ID/ref.list`
+  do
+    doSyntenyFilter.pl \
+    -d$genome \
+    -r.tmp_synblast_folder.$GENE_ID/tblastn/ \
+    -q40 \
+    -f4 \
+    -a$GENE_ID.proteins.info \
+    -o \
+    -g10 \
+    -n10 \
+    .tmp_synblast_folder.$GENE_ID/$GENE_ID.proteins.info
+  done
+
+
+# doSyntenyFilter.pl -d$genome -r.tmp_synblast_folder.$4/tblastn/ -q40 -f4 -a$4.proteins.info -o -g10 -n10 .tmp_synblast_folder.$4/$4.proteins.info
+
+
+echo -e "\n\n\n"
+
+pyfiglet -f digital Creating GTF outputs
+
+## Create a GTF file of the reference hits
+for genome in `cat .tmp_synblast_folder.$GENE_ID/ref.list`
+  do
+    sed '/^#/d' .tmp_synblast_folder.$GENE_ID/$GENE_ID.proteins.syntenyRegions/$genome.*.blastresult | \
+    awk -v OFS='\t' 'NR == FNR{a1[$1]=$2; a2[$1]=$3; a3[$1]=$4; next}; $1 in a1{$13=a1[$1]; $14=a2[$1]; $15=a3[$1]};{print}' .tmp_synblast_folder.$GENE_ID/$GENE_ID.annot - | \
+    awk 'BEGIN{FS=OFS="\t"}{print $2, "synBlst", "BLST", $9, $10, ".", ".", ".", "transcript_id \""$14"\"; gene_id \""$13"\"; gene_name \""$15"\"; perc_ident \""$3"\"; evalue \""$11"\""}' > .tmp_synblast_folder.$GENE_ID/$GENE_ID.$genome.blast_results.gtf
+  done
+
+
+## Create part of GTF for BLAST hits region:
+# get chromosome ID:
+for genome in `cat .tmp_synblast_folder.$GENE_ID/ref.list`
+  do
+    sed '/^#/d' .tmp_synblast_folder.$GENE_ID/$GENE_ID.proteins.syntenyRegions/$genome.*.blastresult | \
+    cut -f 2 |\
+    sort -u > .tmp_synblast_folder.$GENE_ID/$GENE_ID.$genome.chr
+
+    sed '/^#/d' .tmp_synblast_folder.$GENE_ID/$GENE_ID.proteins.syntenyRegions/$genome.*.blastresult | \
+    cut -f 9 |\
+    sort -n |\
+    head -1 > .tmp_synblast_folder.$GENE_ID/$GENE_ID.$genome.min
+
+    sed '/^#/d' .tmp_synblast_folder.$GENE_ID/$GENE_ID.proteins.syntenyRegions/$genome.*.blastresult | \
+    cut -f 10 |\
+    sort -n |\
+    tail -1 > .tmp_synblast_folder.$GENE_ID/$GENE_ID.$genome.max
+
+    cat .tmp_synblast_folder.$GENE_ID/$GENE_ID.$genome.chr \
+        .tmp_synblast_folder.$GENE_ID/$GENE_ID.$genome.min \
+        .tmp_synblast_folder.$GENE_ID/$GENE_ID.$genome.max | \
+        tr '\n' '\t' | \
+        sed 's/$/\n/g' > .tmp_synblast_folder.$GENE_ID/$GENE_ID.$genome.range
+
+    rm .tmp_synblast_folder.$GENE_ID/$GENE_ID.$genome.chr \
+        .tmp_synblast_folder.$GENE_ID/$GENE_ID.$genome.min \
+        .tmp_synblast_folder.$GENE_ID/$GENE_ID.$genome.max
+  done
+
+
+
+for genome in `cat .tmp_synblast_folder.$GENE_ID/ref.list`
+  do
+    desired_range=$(cat .tmp_synblast_folder.$GENE_ID/$GENE_ID.$genome.range | \
+      sed 's/\t/:/1' | \
+      sed 's/\t/../1')
+    gffread references/$genome.gff \
+      -r $desired_range \
+      -T |\
+      cat - .tmp_synblast_folder.$GENE_ID/$GENE_ID.$genome.blast_results.gtf > .tmp_synblast_folder.$GENE_ID/$genome.$GENE_ID.SynRegion.gtf
+  done
+
+
+### Pass final outputs
+mkdir -p $GENE_ID.synteny_blast_results
+
+for genome in `cat .tmp_synblast_folder.$GENE_ID/ref.list`
+  do
+    cp .tmp_synblast_folder.$GENE_ID/$genome.$GENE_ID.SynRegion.gtf $GENE_ID.synteny_blast_results
+  done
+
+pyfiglet -f digital FIN!
+
+## clean up
+rm -r .tmp_synblast_folder.$GENE_ID

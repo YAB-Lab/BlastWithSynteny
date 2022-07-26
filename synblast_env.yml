@@ -1,0 +1,53 @@
+name: synblast
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+  - r
+dependencies:
+  - _libgcc_mutex=0.1=conda_forge
+  - _openmp_mutex=4.5=2_gnu
+  - bzip2=1.0.8=h7f98852_4
+  - ca-certificates=2022.6.15=ha878542_0
+  - expat=2.4.8=h27087fc_0
+  - fontconfig=2.14.0=h8e229c2_0
+  - freetype=2.10.4=h0708190_1
+  - giflib=5.2.1=h36c2ea0_2
+  - icu=67.1=he1b5a44_0
+  - jpeg=9e=h166bdaf_2
+  - ld_impl_linux-64=2.36.1=hea4e1c9_2
+  - libffi=3.4.2=h7f98852_5
+  - libgcc=7.2.0=h69d50b8_2
+  - libgcc-ng=12.1.0=h8d9b700_16
+  - libgd=2.2.5=h6e6070c_1008
+  - libgomp=12.1.0=h8d9b700_16
+  - libnsl=2.0.0=h7f98852_0
+  - libpng=1.6.37=h753d276_3
+  - libstdcxx-ng=12.1.0=ha89aaad_16
+  - libtiff=4.2.0=hf544144_3
+  - libuuid=2.32.1=h7f98852_1000
+  - libwebp=1.2.0=h3452ae3_0
+  - libwebp-base=1.2.0=h7f98852_2
+  - libzlib=1.2.12=h166bdaf_2
+  - lz4-c=1.9.3=h9c3ff4c_1
+  - mysql-connector-c=6.1.6=0
+  - ncurses=6.3=h27087fc_1
+  - openssl=3.0.5=h166bdaf_0
+  - perl=5.26.2=h36c2ea0_1008
+  - perl-dbd-mysql=4.046=pl526h2d50403_0
+  - perl-dbi=1.641=pl526_2
+  - perl-gd=2.71=pl526he860b03_0
+  - pip=22.2=pyhd8ed1ab_0
+  - pyfiglet=0.8.post1=py_0
+  - python=3.10.5=ha86cf86_0_cpython
+  - python_abi=3.10=2_cp310
+  - readline=8.1.2=h0f457ee_0
+  - setuptools=63.2.0=py310hff52083_0
+  - sqlite=3.39.2=h4ff8645_0
+  - tk=8.6.12=h27826a3_0
+  - tzdata=2022a=h191b570_0
+  - wheel=0.37.1=pyhd8ed1ab_0
+  - xz=5.2.5=h516909a_1
+  - zlib=1.2.12=h166bdaf_2
+  - zstd=1.5.2=h8a70e8d_2
+prefix: /home/yahmed/miniconda3/envs/synblast
