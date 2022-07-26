@@ -1,5 +1,5 @@
 # BlastWithSynteny
-Performs tBLASTn of a focal protein and its flanking neighbors against a set of target genomes.
+Performs tBLASTn of a focal protein and its flanking neighbors against a set of target genomes. Return a GTF/GFF of the target hits and their corresponding query BLAST overlaps.
 
 
 	Usage:  BlastSynteny [-g <GFF>] [-p <protein FASTA>]
