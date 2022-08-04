@@ -1,4 +1,4 @@
-#!/home/yahmed/miniconda3/bin/perl -w
+#!/home/yahmed/miniconda3/envs/BlastSyn/bin/perl
 
 ## Help text in perldoc format
 =head1 SYNOPSIS

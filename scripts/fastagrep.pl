@@ -1,4 +1,4 @@
-#!/home/yahmed/miniconda3/bin/perl
+#!/usr/bin/perl -w
 
 # FASTA grep tool by Tim Booth - tbooth@ceh.ac.uk, http://nebc.nerc.ac.uk
 #
@@ -21,7 +21,7 @@ our $BLURB = " FASTAgrep - extract sequences from a multi-FASTA file by regex.
         -x = whole line match
         -X = match whole of first word (ie. the ID)
         -v = invert match
-        -i = ignore case 
+        -i = ignore case
         -f FILE = take patterns from file, one per line
 
       FASTA options
@@ -52,20 +52,20 @@ $opts{C} and $/ = "\015\012";
 #Things to do if naughty carriage returns are found
 sub checkcr1
 {
-	$_[0] =~ /\015/ and die ( $/ eq "\015\012" ? 
-		"The first search pattern contains embedded CR line terminators despite CRLF line temrinators being set.\n" . 
+	$_[0] =~ /\015/ and die ( $/ eq "\015\012" ?
+		"The first search pattern contains embedded CR line terminators despite CRLF line temrinators being set.\n" .
 		"This input file really needs cleaning up.\n" :
 		"Your pattern file contains CR line terminators.  You should run 'sed -i \"s/\\r//\" $opts{f}' to purge them.\n" );
 	#Note that if a Unix file is read in DOS mode it ends up all on one line.
- 	$_[0] =~ /\012/ and die ( 
+ 	$_[0] =~ /\012/ and die (
  		"The first search pattern contains embedded LF line terminators, so something went wrong when " .
  		"reading the file.\nMaybe you are trying to read a Unix-type file in Windows or with -C in effect?\n" );
-					
+
 }
 sub checkcr2
 {
-	$_[0] =~ /\015/ and die ( $/ eq "\015\012" ? 
-		"The first line of your FASTA file contains embedded CR line terminators despite CRLF line terminators being set.\n" . 
+	$_[0] =~ /\015/ and die ( $/ eq "\015\012" ?
+		"The first line of your FASTA file contains embedded CR line terminators despite CRLF line terminators being set.\n" .
 		"This input file really needs cleaning up.\n" :
 		"Your FASTA file contains CR line terminators.  You should run 'sed -i \"s/\\r//\" <filename>' to purge them,\n" .
         "or use the -C flag if you are sure you want to keep all files in this format.\n");
@@ -187,7 +187,7 @@ if($opts{F}) { if($opts{x}) { if(%patternhash) { if($opts{i}) {
 	$matcher = sub{ return $patternhash{lc($_[0])} }
 } else {
 	#Fixed match to whole info line based on hash
-    $matcher = sub{ return $patternhash{$_[0]} }  
+    $matcher = sub{ return $patternhash{$_[0]} }
 } } else { if($opts{i}) {
     #Fixed case insensitive match to whole info line based on array
 	$matcher = sub{ my $in = lc($_[0]) ; for(@patterns){$in eq $_ && return 1} ; 0 }
@@ -211,7 +211,7 @@ if($opts{F}) { if($opts{x}) { if(%patternhash) { if($opts{i}) {
 	$matcher = sub{ for(@patterns){my $in = lc($_[0]); index($in, $_) >= 0 && return 1 } ; 0 }
 } else {
     #Fixed match to substring of info line based on array
-	$matcher = sub{ for(@patterns){index($_[0], $_) >= 0 && return 1 } ; 0 } 
+	$matcher = sub{ for(@patterns){index($_[0], $_) >= 0 && return 1 } ; 0 }
 } } } elsif($opts{X}) {
     #Pattern match to first word of info line (patterns will have been modified to match whole word)
 	$matcher = sub{ my $fw = $_[0]; $fw =~ s/^\s+//; $fw =~ s/$id_chopper//; for(@patterns){$fw =~ $_ && return 1} ; 0 };
@@ -246,7 +246,7 @@ else
 }
 
 
-#OK, let's go through the sequences.  Unless re-wrap is on I'm simply going to assume that a 
+#OK, let's go through the sequences.  Unless re-wrap is on I'm simply going to assume that a
 #header line begins with \s*> and everything until the next header is sequence.
 #No checking line endings either.
 if(!$rewrap)
@@ -272,7 +272,7 @@ else
 	#   if first_line check and save
 	#	elsif seq_is_empty throw error
 	#   else process_sequence, save
-	#  else 
+	#  else
 	#   if first_line throw error
 	#   else add_to_seq
 	#done
@@ -310,4 +310,3 @@ else
 
 #Et voila.
 1;
-
