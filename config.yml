@@ -1,0 +1,7 @@
+# Path to reference genome and indices.
+QUERY_GTF: '/home/yahmed/SFP_BlastSyn/query/Drosophila_melanogaster.BDGP6.32.107.gtf'
+QUERY_PEP: '/home/yahmed/SFP_BlastSyn/query/Drosophila_melanogaster.BDGP6.32.pep.all.fa'
+REF_FOLD: '/home/yahmed/SFP_BlastSyn/references/'
+ANNOTS: '/home/yahmed/SFP_BlastSyn/misc/fbgn_fbtr_fbpp_fb_2022_02.tsv'
+GENE_LIST: '/home/yahmed/SFP_BlastSyn/BlastSyn_mel_FBgn.txt'
+OUT_DIR: '/home/yahmed/SFP_BlastSyn/RESULTS'
